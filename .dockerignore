@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/.vite
+storage
+.tmp-storage
+.env
+.env.local
+.git
+playwright-report
+test-results
+coverage
+*.tsbuildinfo
+backend/src/generated

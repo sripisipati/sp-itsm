@@ -1,0 +1,1074 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../../backend/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Impact {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Urgency {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Priority {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum IncidentStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+enum NoteType {
+  WORK_NOTE
+  ADDITIONAL_COMMENT
+  APPROVAL_COMMENT
+}
+
+enum HistoryActionType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  ASSIGNED
+  REASSIGNED
+  NOTE_ADDED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  RESOLVED
+  REOPENED
+  CLOSED
+  CANCELLED
+}
+
+enum RoleName {
+  ITSM_ADMINISTRATOR
+  INCIDENT_MANAGER
+  SUPPORT_AGENT
+  REQUESTER
+  READ_ONLY
+  CHANGE_MANAGER
+  CHANGE_REQUESTER
+  CHANGE_OWNER
+  TECHNICAL_APPROVER
+  BUSINESS_APPROVER
+  CAB_MEMBER
+  IMPLEMENTATION_LEAD
+  CHANGE_AUDITOR
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  employeeId   String   @unique
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roles               UserRole[]
+  memberships         GroupMember[]
+  notifications       Notification[]
+  incidentsAsCaller   Incident[]           @relation("IncidentCaller")
+  incidentsAssigned   Incident[]           @relation("IncidentAssignee")
+  incidentsResolved   Incident[]           @relation("IncidentResolver")
+  incidentsCreated    Incident[]           @relation("IncidentCreatedBy")
+  incidentsUpdated    Incident[]           @relation("IncidentUpdatedBy")
+  notesCreated        IncidentNote[]
+  attachmentsUploaded IncidentAttachment[]
+  historyChanges      IncidentHistory[]
+  changesRequested    ChangeRequest[] @relation("RequestedBy")
+  changesRequestedFor ChangeRequest[] @relation("RequestedFor")
+  changesAssigned     ChangeRequest[] @relation("AssignedTo")
+  changesOwned        ChangeRequest[] @relation("ChangeOwner")
+  changesLed          ChangeRequest[] @relation("ImplementationLead")
+  changesCoordinated  ChangeRequest[] @relation("ChangeCoordinator")
+  changesCreated      ChangeRequest[] @relation("ChangeCreatedBy")
+  changesUpdated      ChangeRequest[] @relation("ChangeUpdatedBy")
+  changesRollbackOwned ChangeRequest[] @relation("RollbackOwner")
+  changesScheduleOverride ChangeRequest[] @relation("ScheduleOverrideBy")
+  changeTasksAssigned ChangeTask[] @relation("TaskAssignee")
+  changeTestsOwned    ChangeTestCase[] @relation("TestOwner")
+  changeApprovalsAssigned ChangeApproval[] @relation("ApprovalAssignee")
+  changeApprovalsDelegated ChangeApproval[] @relation("ApprovalDelegate")
+  changeApprovalsDecided ChangeApproval[] @relation("ApprovalDecidedBy")
+  changeNotes         ChangeNote[] @relation("NoteAuthor")
+  changeHistory       ChangeHistory[] @relation("HistoryAuthor")
+  pirConducted        ChangePir[] @relation("PirConductor")
+  pirActionsOwned     PirAction[] @relation("PirActionOwner")
+  cabMemberships      CabMeetingMember[]
+  cabMeetingsCreated  CabMeeting[] @relation("CabCreatedBy")
+  cabAgendaDecisions  CabAgendaItem[] @relation("AgendaDecidedBy")
+  cabDecisions        CabDecision[] @relation("CabDecidedBy")
+  changeAttachments   ChangeAttachment[]
+
+  @@index([isActive])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        RoleName @unique
+  description String
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model AssignmentGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members   GroupMember[]
+  incidents Incident[]
+  assignedChanges ChangeRequest[] @relation("AssignmentGroup")
+  implementationChanges ChangeRequest[] @relation("ImplementationGroup")
+  changeTasks ChangeTask[]
+  approvalSteps ApprovalPolicyStep[]
+
+  @@map("assignment_groups")
+}
+
+model GroupMember {
+  groupId String          @db.Uuid
+  userId  String          @db.Uuid
+  group   AssignmentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+model TicketSequence {
+  prefix     String @id
+  nextNumber Int    @map("next_number")
+
+  @@map("ticket_sequences")
+}
+
+model IncidentCategory {
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String
+  parentId String? @db.Uuid
+  isActive Boolean @default(true)
+
+  parent                 IncidentCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children               IncidentCategory[] @relation("CategoryTree")
+  incidentsAsCategory    Incident[]         @relation("IncidentCategory")
+  incidentsAsSubcategory Incident[]         @relation("IncidentSubcategory")
+
+  @@index([parentId])
+  @@map("incident_categories")
+}
+
+model ConfigurationItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  ciType      String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  incidents   Incident[]
+  primaryChanges ChangeRequest[] @relation("PrimaryCi")
+  affectedChangeLinks ChangeAffectedCi[]
+  maintenanceWindows MaintenanceWindow[]
+  blackoutPeriods BlackoutPeriod[]
+
+  @@index([ciType])
+  @@map("configuration_items")
+}
+
+model BusinessService {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  incidents   Incident[]
+  changes ChangeRequest[]
+  affectedChangeLinks ChangeAffectedService[]
+  maintenanceWindows MaintenanceWindow[]
+  blackoutPeriods BlackoutPeriod[]
+
+  @@map("business_services")
+}
+
+model PriorityMatrix {
+  id                 String   @id @default(uuid()) @db.Uuid
+  impact             Impact
+  urgency            Urgency
+  calculatedPriority Priority
+  isActive           Boolean  @default(true)
+
+  @@unique([impact, urgency])
+  @@map("priority_matrix")
+}
+
+model StatusTransition {
+  id         String         @id @default(uuid()) @db.Uuid
+  fromStatus IncidentStatus
+  toStatus   IncidentStatus
+  isActive   Boolean        @default(true)
+
+  @@unique([fromStatus, toStatus])
+  @@map("status_transitions")
+}
+
+model ResolutionCode {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String  @unique
+  label    String
+  isActive Boolean @default(true)
+
+  @@map("resolution_codes")
+}
+
+model AppSetting {
+  key   String @id
+  value String
+
+  @@map("app_settings")
+}
+
+model Incident {
+  id                   String         @id @default(uuid()) @db.Uuid
+  ticketNumber         String         @unique @map("ticket_number")
+  shortDescription     String         @map("short_description")
+  description          String
+  categoryId           String?        @db.Uuid @map("category_id")
+  subcategoryId        String?        @db.Uuid @map("subcategory_id")
+  callerId             String?        @db.Uuid @map("caller_id")
+  contactInformation   String?        @map("contact_information")
+  configurationItemId  String?        @db.Uuid @map("configuration_item_id")
+  businessServiceId    String?        @db.Uuid @map("business_service_id")
+  affectedLocation     String?        @map("affected_location")
+  impact               Impact         @default(MEDIUM)
+  urgency              Urgency        @default(MEDIUM)
+  severity             Severity       @default(MEDIUM)
+  priority             Priority       @default(P3)
+  impactedUsers        Int            @default(1) @map("impacted_users")
+  assignmentGroupId    String?        @db.Uuid @map("assignment_group_id")
+  assignedToId         String?        @db.Uuid @map("assigned_to_id")
+  assignedOn           DateTime?      @map("assigned_on")
+  status               IncidentStatus @default(NEW)
+  resolutionCode       String?        @map("resolution_code")
+  resolutionNotes      String?        @map("resolution_notes")
+  resolvedById         String?        @db.Uuid @map("resolved_by_id")
+  resolvedOn           DateTime?      @map("resolved_on")
+  createdById          String         @db.Uuid @map("created_by_id")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedById          String         @db.Uuid @map("updated_by_id")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  version              Int            @default(1)
+  archivedAt           DateTime?      @map("archived_at")
+
+  category          IncidentCategory?   @relation("IncidentCategory", fields: [categoryId], references: [id])
+  subcategory       IncidentCategory?   @relation("IncidentSubcategory", fields: [subcategoryId], references: [id])
+  caller            User?               @relation("IncidentCaller", fields: [callerId], references: [id])
+  configurationItem ConfigurationItem?  @relation(fields: [configurationItemId], references: [id])
+  businessService   BusinessService?    @relation(fields: [businessServiceId], references: [id])
+  assignmentGroup   AssignmentGroup?    @relation(fields: [assignmentGroupId], references: [id])
+  assignedTo        User?               @relation("IncidentAssignee", fields: [assignedToId], references: [id])
+  resolvedBy        User?               @relation("IncidentResolver", fields: [resolvedById], references: [id])
+  createdBy         User                @relation("IncidentCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User                @relation("IncidentUpdatedBy", fields: [updatedById], references: [id])
+  notes             IncidentNote[]
+  attachments       IncidentAttachment[]
+  history           IncidentHistory[]
+  changes           ChangeRequest[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([severity])
+  @@index([assignedToId])
+  @@index([assignmentGroupId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([callerId])
+  @@index([archivedAt])
+  @@map("incidents")
+}
+
+model IncidentNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  incidentId String   @db.Uuid @map("incident_id")
+  noteType   NoteType @map("note_type")
+  content    String
+  createdById String  @db.Uuid @map("created_by_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  incident  Incident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([incidentId, createdAt])
+  @@map("incident_notes")
+}
+
+model IncidentAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  incidentId   String   @db.Uuid @map("incident_id")
+  fileName     String   @map("file_name")
+  storageKey   String   @unique @map("storage_key")
+  contentType  String   @map("content_type")
+  fileSize     Int      @map("file_size")
+  uploadedById String   @db.Uuid @map("uploaded_by_id")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id])
+
+  @@index([incidentId])
+  @@map("incident_attachments")
+}
+
+model IncidentHistory {
+  id          String            @id @default(uuid()) @db.Uuid
+  incidentId  String            @db.Uuid @map("incident_id")
+  fieldName   String            @map("field_name")
+  oldValue    String?           @map("old_value")
+  newValue    String?           @map("new_value")
+  actionType  HistoryActionType @map("action_type")
+  changedById String            @db.Uuid @map("changed_by_id")
+  changedAt   DateTime          @default(now()) @map("changed_at")
+
+  incident  Incident @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  changedBy User     @relation(fields: [changedById], references: [id])
+
+  @@index([incidentId, changedAt])
+  @@map("incident_history")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid @map("user_id")
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum ChangeType {
+  STANDARD
+  NORMAL
+  EMERGENCY
+}
+
+enum ChangeState {
+  DRAFT
+  SUBMITTED
+  ASSESSMENT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  IMPLEMENTING
+  IMPLEMENTED
+  FAILED
+  REJECTED
+  DEFERRED
+  CANCELLED
+  PENDING_REVIEW
+  CLOSED
+}
+
+enum RiskLevel {
+  VERY_HIGH
+  HIGH
+  MEDIUM
+  LOW
+  VERY_LOW
+}
+
+enum ImpactLevel {
+  VERY_HIGH
+  HIGH
+  MEDIUM
+  LOW
+  VERY_LOW
+}
+
+enum ChangePriority {
+  CRITICAL
+  HIGH
+  MODERATE
+  LOW
+  PLANNING
+}
+
+enum Probability {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ApprovalType {
+  TECHNICAL
+  BUSINESS
+  APPLICATION_OWNER
+  INFRASTRUCTURE
+  SECURITY
+  CAB
+  EMERGENCY
+}
+
+enum ApprovalDecisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MORE_INFO
+  DELEGATED
+}
+
+enum ChangeApprovalStatus {
+  NOT_REQUESTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalMode {
+  SEQUENTIAL
+  PARALLEL
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  BLOCKED
+}
+
+enum TestStatus {
+  NOT_EXECUTED
+  PASSED
+  FAILED
+  BLOCKED
+}
+
+enum ImplementationOutcome {
+  SUCCESS
+  PARTIAL
+  FAILURE
+}
+
+enum PirResult {
+  SUCCESSFUL
+  PARTIAL
+  UNSUCCESSFUL
+}
+
+enum ProblemState {
+  NEW
+  ASSESSED
+  RESOLVED
+  CLOSED
+}
+
+enum CabMeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CabDecisionType {
+  APPROVE
+  REJECT
+  DEFER
+  MORE_INFO
+}
+
+model Problem {
+  id               String       @id @default(uuid()) @db.Uuid
+  number           String       @unique
+  shortDescription String       @map("short_description")
+  state            ProblemState @default(NEW)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  changes          ChangeRequest[]
+
+  @@map("problems")
+}
+
+model ChangeCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  parentId  String?  @db.Uuid @map("parent_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  parent    ChangeCategory?  @relation("ChangeCategoryTree", fields: [parentId], references: [id])
+  children  ChangeCategory[] @relation("ChangeCategoryTree")
+  changes   ChangeRequest[]  @relation("ChangeCategory")
+  subChanges ChangeRequest[] @relation("ChangeSubcategory")
+  templates ChangeTemplate[]
+
+  @@index([parentId])
+  @@map("change_categories")
+}
+
+model ChangeTemplate {
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String   @unique
+  description        String
+  categoryId         String?  @db.Uuid @map("category_id")
+  implementationPlan String?  @map("implementation_plan")
+  backoutPlan        String?  @map("backout_plan")
+  isActive           Boolean  @default(true) @map("is_active")
+  category           ChangeCategory? @relation(fields: [categoryId], references: [id])
+  changes            ChangeRequest[]
+
+  @@map("change_templates")
+}
+
+model ChangeRequest {
+  id                         String                @id @default(uuid()) @db.Uuid
+  number                     String                @unique
+  shortDescription           String                @map("short_description")
+  description                String
+  type                       ChangeType
+  categoryId                 String?               @db.Uuid @map("category_id")
+  subcategoryId              String?               @db.Uuid @map("subcategory_id")
+  requestedById              String                @db.Uuid @map("requested_by_id")
+  requestedForId             String?               @db.Uuid @map("requested_for_id")
+  businessJustification      String?               @map("business_justification")
+  businessServiceId          String?               @db.Uuid @map("business_service_id")
+  configurationItemId        String?               @db.Uuid @map("configuration_item_id")
+  relatedIncidentId          String?               @db.Uuid @map("related_incident_id")
+  relatedProblemId           String?               @db.Uuid @map("related_problem_id")
+  businessImpact             ImpactLevel?          @map("business_impact")
+  technicalImpact            ImpactLevel?          @map("technical_impact")
+  urgency                    Urgency?
+  priority                   ChangePriority?
+  probability                Probability?
+  impactedUsers              Int?                  @map("impacted_users")
+  downtimeRequired           Boolean               @default(false) @map("downtime_required")
+  estimatedDowntimeMinutes   Int?                  @map("estimated_downtime_minutes")
+  riskAssessmentNarrative    String?               @map("risk_assessment_narrative")
+  impactAnalysis             String?               @map("impact_analysis")
+  assessmentSummary          String?               @map("assessment_summary")
+  riskLevel                  RiskLevel?            @map("risk_level")
+  riskScore                  Float?                @map("risk_score")
+  riskExplanation            String?               @map("risk_explanation")
+  plannedStart               DateTime?             @map("planned_start")
+  plannedEnd                 DateTime?             @map("planned_end")
+  actualStart                DateTime?             @map("actual_start")
+  actualEnd                  DateTime?             @map("actual_end")
+  maintenanceWindowId        String?               @db.Uuid @map("maintenance_window_id")
+  assignmentGroupId          String?               @db.Uuid @map("assignment_group_id")
+  implementationGroupId      String?               @db.Uuid @map("implementation_group_id")
+  changeOwnerId              String?               @db.Uuid @map("change_owner_id")
+  implementationLeadId       String?               @db.Uuid @map("implementation_lead_id")
+  changeCoordinatorId        String?               @db.Uuid @map("change_coordinator_id")
+  assignedToId               String?               @db.Uuid @map("assigned_to_id")
+  scheduleOverrideJustification String?            @map("schedule_override_justification")
+  scheduleOverrideById       String?               @db.Uuid @map("schedule_override_by_id")
+  scheduleOverrideAt         DateTime?             @map("schedule_override_at")
+  backoutRequired            Boolean               @default(false) @map("backout_required")
+  backoutPlan                String?               @map("backout_plan")
+  backoutTriggerConditions   String?               @map("backout_trigger_conditions")
+  rollbackSteps              String?               @map("rollback_steps")
+  rollbackDurationMinutes    Int?                  @map("rollback_duration_minutes")
+  rollbackOwnerId            String?               @db.Uuid @map("rollback_owner_id")
+  approvalStatus             ChangeApprovalStatus  @default(NOT_REQUESTED) @map("approval_status")
+  state                      ChangeState           @default(DRAFT)
+  implementationStatus       String?               @map("implementation_status")
+  implementationSummary      String?               @map("implementation_summary")
+  implementationOutcome      ImplementationOutcome? @map("implementation_outcome")
+  serviceImpactSummary       String?               @map("service_impact_summary")
+  issuesEncountered          String?               @map("issues_encountered")
+  rollbackExecuted           Boolean               @default(false) @map("rollback_executed")
+  resolutionDetails          String?               @map("resolution_details")
+  pirRequired                Boolean               @default(false) @map("pir_required")
+  emergencyJustification     String?               @map("emergency_justification")
+  testPlan                   String?               @map("test_plan")
+  templateId                 String?               @db.Uuid @map("template_id")
+  version                    Int                   @default(1)
+  createdById                String                @db.Uuid @map("created_by_id")
+  updatedById                String                @db.Uuid @map("updated_by_id")
+  createdAt                  DateTime              @default(now()) @map("created_at")
+  updatedAt                  DateTime              @updatedAt @map("updated_at")
+
+  category            ChangeCategory?  @relation("ChangeCategory", fields: [categoryId], references: [id])
+  subcategory         ChangeCategory?  @relation("ChangeSubcategory", fields: [subcategoryId], references: [id])
+  requestedBy         User             @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestedFor        User?            @relation("RequestedFor", fields: [requestedForId], references: [id])
+  businessService     BusinessService? @relation(fields: [businessServiceId], references: [id])
+  configurationItem   ConfigurationItem? @relation("PrimaryCi", fields: [configurationItemId], references: [id])
+  relatedIncident     Incident?        @relation(fields: [relatedIncidentId], references: [id])
+  relatedProblem      Problem?         @relation(fields: [relatedProblemId], references: [id])
+  assignmentGroup     AssignmentGroup? @relation("AssignmentGroup", fields: [assignmentGroupId], references: [id])
+  implementationGroup AssignmentGroup? @relation("ImplementationGroup", fields: [implementationGroupId], references: [id])
+  changeOwner         User?            @relation("ChangeOwner", fields: [changeOwnerId], references: [id])
+  implementationLead  User?            @relation("ImplementationLead", fields: [implementationLeadId], references: [id])
+  changeCoordinator   User?            @relation("ChangeCoordinator", fields: [changeCoordinatorId], references: [id])
+  assignedTo          User?            @relation("AssignedTo", fields: [assignedToId], references: [id])
+  scheduleOverrideBy  User?            @relation("ScheduleOverrideBy", fields: [scheduleOverrideById], references: [id])
+  rollbackOwner       User?            @relation("RollbackOwner", fields: [rollbackOwnerId], references: [id])
+  createdBy           User             @relation("ChangeCreatedBy", fields: [createdById], references: [id])
+  updatedBy           User             @relation("ChangeUpdatedBy", fields: [updatedById], references: [id])
+  template            ChangeTemplate?  @relation(fields: [templateId], references: [id])
+  maintenanceWindow   MaintenanceWindow? @relation(fields: [maintenanceWindowId], references: [id])
+  affectedCis         ChangeAffectedCi[]
+  affectedServices    ChangeAffectedService[]
+  tasks               ChangeTask[]
+  testCases           ChangeTestCase[]
+  approvals           ChangeApproval[]
+  notes               ChangeNote[]
+  history             ChangeHistory[]
+  pir                 ChangePir?
+  attachments         ChangeAttachment[]
+  agendaItems         CabAgendaItem[]
+
+  @@index([state])
+  @@index([type])
+  @@index([riskLevel])
+  @@index([priority])
+  @@index([approvalStatus])
+  @@index([plannedStart])
+  @@index([plannedEnd])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([assignmentGroupId])
+  @@index([requestedById])
+  @@index([assignedToId])
+  @@index([relatedIncidentId])
+  @@index([relatedProblemId])
+  @@map("change_requests")
+}
+
+model ChangeAffectedCi {
+  changeId            String @db.Uuid @map("change_id")
+  configurationItemId String @db.Uuid @map("configuration_item_id")
+  change              ChangeRequest     @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  configurationItem   ConfigurationItem @relation(fields: [configurationItemId], references: [id])
+
+  @@id([changeId, configurationItemId])
+  @@map("change_affected_cis")
+}
+
+model ChangeAffectedService {
+  changeId          String @db.Uuid @map("change_id")
+  businessServiceId String @db.Uuid @map("business_service_id")
+  change            ChangeRequest   @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  businessService   BusinessService @relation(fields: [businessServiceId], references: [id])
+
+  @@id([changeId, businessServiceId])
+  @@map("change_affected_services")
+}
+
+model ChangeTask {
+  id                String     @id @default(uuid()) @db.Uuid
+  changeId          String     @db.Uuid @map("change_id")
+  number            String
+  description       String
+  instructions      String?
+  assigneeId        String?    @db.Uuid @map("assignee_id")
+  assignmentGroupId String?    @db.Uuid @map("assignment_group_id")
+  plannedStart      DateTime?  @map("planned_start")
+  plannedEnd        DateTime?  @map("planned_end")
+  estimatedMinutes  Int?       @map("estimated_minutes")
+  actualStart       DateTime?  @map("actual_start")
+  actualEnd         DateTime?  @map("actual_end")
+  status            TaskStatus @default(PENDING)
+  completionComments String?   @map("completion_comments")
+  change            ChangeRequest    @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  assignee          User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignmentGroup   AssignmentGroup? @relation(fields: [assignmentGroupId], references: [id])
+  dependencies      ChangeTaskDependency[] @relation("DependentTask")
+  dependents        ChangeTaskDependency[] @relation("DependsOnTask")
+
+  @@unique([changeId, number])
+  @@index([changeId])
+  @@map("change_tasks")
+}
+
+model ChangeTaskDependency {
+  taskId      String @db.Uuid @map("task_id")
+  dependsOnId String @db.Uuid @map("depends_on_id")
+  task        ChangeTask @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn   ChangeTask @relation("DependsOnTask", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, dependsOnId])
+  @@map("change_task_dependencies")
+}
+
+model ChangeTestCase {
+  id                 String     @id @default(uuid()) @db.Uuid
+  changeId           String     @db.Uuid @map("change_id")
+  description        String
+  expectedResults    String     @map("expected_results")
+  validationCriteria String?    @map("validation_criteria")
+  ownerId            String?    @db.Uuid @map("owner_id")
+  actualResults      String?    @map("actual_results")
+  status             TestStatus @default(NOT_EXECUTED)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  change             ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  owner              User?         @relation("TestOwner", fields: [ownerId], references: [id])
+
+  @@index([changeId])
+  @@map("change_test_cases")
+}
+
+model ChangeApproval {
+  id              String                 @id @default(uuid()) @db.Uuid
+  changeId        String                 @db.Uuid @map("change_id")
+  approvalType    ApprovalType           @map("approval_type")
+  sequence        Int
+  status          ApprovalDecisionStatus @default(PENDING)
+  approverId      String?                @db.Uuid @map("approver_id")
+  delegatedToId   String?                @db.Uuid @map("delegated_to_id")
+  decidedById     String?                @db.Uuid @map("decided_by_id")
+  comments        String?
+  dueAt           DateTime?              @map("due_at")
+  decidedAt       DateTime?              @map("decided_at")
+  requiredRole    RoleName               @map("required_role")
+  change          ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  approver        User?         @relation("ApprovalAssignee", fields: [approverId], references: [id])
+  delegatedTo     User?         @relation("ApprovalDelegate", fields: [delegatedToId], references: [id])
+  decidedBy       User?         @relation("ApprovalDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([changeId, sequence])
+  @@map("change_approvals")
+}
+
+model ChangeNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  changeId  String   @db.Uuid @map("change_id")
+  noteType  NoteType @map("note_type")
+  content   String
+  authorId  String   @db.Uuid @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  change    ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  author    User          @relation("NoteAuthor", fields: [authorId], references: [id])
+
+  @@index([changeId, createdAt])
+  @@map("change_notes")
+}
+
+model ChangeHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  changeId  String   @db.Uuid @map("change_id")
+  action    String
+  field     String?
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  comment   String?
+  userId    String   @db.Uuid @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  change    ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  user      User          @relation("HistoryAuthor", fields: [userId], references: [id])
+
+  @@index([changeId, createdAt])
+  @@map("change_history")
+}
+
+model ChangePir {
+  id                    String    @id @default(uuid()) @db.Uuid
+  changeId              String    @unique @db.Uuid @map("change_id")
+  conductedById         String?   @db.Uuid @map("conducted_by_id")
+  conductedAt           DateTime? @map("conducted_at")
+  expectedVsActual      String?   @map("expected_vs_actual")
+  disruption            String?
+  customerImpact        String?   @map("customer_impact")
+  successCriteriaMet    Boolean?  @map("success_criteria_met")
+  lessonsLearned        String?   @map("lessons_learned")
+  result                PirResult?
+  change                ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  conductedBy           User?         @relation("PirConductor", fields: [conductedById], references: [id])
+  actions               PirAction[]
+
+  @@map("change_pirs")
+}
+
+model PirAction {
+  id        String    @id @default(uuid()) @db.Uuid
+  pirId     String    @db.Uuid @map("pir_id")
+  description String
+  ownerId   String?   @db.Uuid @map("owner_id")
+  dueAt     DateTime? @map("due_at")
+  pir       ChangePir @relation(fields: [pirId], references: [id], onDelete: Cascade)
+  owner     User?     @relation("PirActionOwner", fields: [ownerId], references: [id])
+
+  @@index([pirId])
+  @@map("pir_actions")
+}
+
+model ApprovalPolicy {
+  id                String       @id @default(uuid()) @db.Uuid
+  name              String
+  changeType        ChangeType   @map("change_type")
+  minRisk           RiskLevel?   @map("min_risk")
+  maxRisk           RiskLevel?   @map("max_risk")
+  mode              ApprovalMode
+  isActive          Boolean      @default(true) @map("is_active")
+  allowSelfApproval Boolean      @default(false) @map("allow_self_approval")
+  steps             ApprovalPolicyStep[]
+
+  @@index([changeType, isActive])
+  @@map("approval_policies")
+}
+
+model ApprovalPolicyStep {
+  id                String       @id @default(uuid()) @db.Uuid
+  policyId          String       @db.Uuid @map("policy_id")
+  sequence          Int
+  approvalType      ApprovalType @map("approval_type")
+  requiredRole      RoleName     @map("required_role")
+  assignmentGroupId String?      @db.Uuid @map("assignment_group_id")
+  deadlineHours     Int?         @map("deadline_hours")
+  policy            ApprovalPolicy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  assignmentGroup   AssignmentGroup? @relation(fields: [assignmentGroupId], references: [id])
+
+  @@index([policyId, sequence])
+  @@map("approval_policy_steps")
+}
+
+model RiskEngineConfig {
+  id                String @id
+  impactWeight      Float  @map("impact_weight")
+  probabilityWeight Float  @map("probability_weight")
+  downtimeWeight    Float  @map("downtime_weight")
+  userImpactWeight  Float  @map("user_impact_weight")
+  veryHighMin       Float  @map("very_high_min")
+  highMin           Float  @map("high_min")
+  mediumMin         Float  @map("medium_min")
+  lowMin            Float  @map("low_min")
+
+  @@map("risk_engine_config")
+}
+
+model RiskFactorScore {
+  id          String @id @default(uuid()) @db.Uuid
+  factorType  String @map("factor_type")
+  factorValue String @map("factor_value")
+  score       Float
+  @@unique([factorType, factorValue])
+  @@map("risk_factor_scores")
+}
+
+model RiskUserBand {
+  id       String @id @default(uuid()) @db.Uuid
+  minUsers Int    @map("min_users")
+  maxUsers Int?   @map("max_users")
+  score    Float
+  @@map("risk_user_bands")
+}
+
+model RiskLevelRank {
+  level RiskLevel @id
+  rank  Int
+  @@map("risk_level_ranks")
+}
+
+model ChangePriorityMatrix {
+  id       String         @id @default(uuid()) @db.Uuid
+  impact   ImpactLevel
+  urgency  Urgency
+  priority ChangePriority
+  @@unique([impact, urgency])
+  @@map("change_priority_matrix")
+}
+
+model ChangeStateRule {
+  id           String      @id @default(uuid()) @db.Uuid
+  fromState    ChangeState @map("from_state")
+  toState      ChangeState @map("to_state")
+  guard        String
+  allowedRoles String      @map("allowed_roles")
+  isActive     Boolean     @default(true) @map("is_active")
+  @@unique([fromState, toState])
+  @@map("change_state_rules")
+}
+
+model RollbackRequirement {
+  id         String     @id @default(uuid()) @db.Uuid
+  changeType ChangeType @map("change_type")
+  risk       RiskLevel
+  required   Boolean    @default(true)
+  @@unique([changeType, risk])
+  @@map("rollback_requirements")
+}
+
+model ChangeTypePolicy {
+  changeType          ChangeType @id @map("change_type")
+  requiresAssessment  Boolean    @default(true) @map("requires_assessment")
+  pirRequired         Boolean    @default(false) @map("pir_required")
+  pirMinRisk          RiskLevel? @map("pir_min_risk")
+  earlyImplementRoles String     @default("ITSM_ADMINISTRATOR|CHANGE_MANAGER") @map("early_implement_roles")
+  allowSelfApproval   Boolean    @default(false) @map("allow_self_approval")
+
+  @@map("change_type_policies")
+}
+
+model CabMeeting {
+  id          String           @id @default(uuid()) @db.Uuid
+  number      String           @unique
+  title       String
+  startsAt    DateTime         @map("starts_at")
+  endsAt      DateTime         @map("ends_at")
+  status      CabMeetingStatus @default(SCHEDULED)
+  minutes     String?
+  createdById String           @db.Uuid @map("created_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  createdBy   User             @relation("CabCreatedBy", fields: [createdById], references: [id])
+  members     CabMeetingMember[]
+  agenda      CabAgendaItem[]
+  decisions   CabDecision[]
+
+  @@map("cab_meetings")
+}
+
+model CabMeetingMember {
+  meetingId String @db.Uuid @map("meeting_id")
+  userId    String @db.Uuid @map("user_id")
+  meeting   CabMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+
+  @@id([meetingId, userId])
+  @@map("cab_meeting_members")
+}
+
+model CabAgendaItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  meetingId   String          @db.Uuid @map("meeting_id")
+  changeId    String          @db.Uuid @map("change_id")
+  summary     String?
+  decision    CabDecisionType?
+  comments    String?
+  decidedById String?         @db.Uuid @map("decided_by_id")
+  decidedAt   DateTime?       @map("decided_at")
+  meeting     CabMeeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  change      ChangeRequest   @relation(fields: [changeId], references: [id])
+  decidedBy   User?           @relation("AgendaDecidedBy", fields: [decidedById], references: [id])
+
+  @@unique([meetingId, changeId])
+  @@map("cab_agenda_items")
+}
+
+model CabDecision {
+  id        String          @id @default(uuid()) @db.Uuid
+  meetingId String          @db.Uuid @map("meeting_id")
+  changeId  String          @db.Uuid @map("change_id")
+  decision  CabDecisionType
+  comments  String?
+  userId    String          @db.Uuid @map("user_id")
+  createdAt DateTime        @default(now()) @map("created_at")
+  meeting   CabMeeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User            @relation("CabDecidedBy", fields: [userId], references: [id])
+
+  @@index([changeId])
+  @@map("cab_decisions")
+}
+
+model MaintenanceWindow {
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String
+  startAt             DateTime  @map("start_at")
+  endAt               DateTime  @map("end_at")
+  configurationItemId String?   @db.Uuid @map("configuration_item_id")
+  businessServiceId   String?   @db.Uuid @map("business_service_id")
+  configurationItem   ConfigurationItem? @relation(fields: [configurationItemId], references: [id])
+  businessService     BusinessService?   @relation(fields: [businessServiceId], references: [id])
+  changes             ChangeRequest[]
+
+  @@map("maintenance_windows")
+}
+
+model BlackoutPeriod {
+  id                  String   @id @default(uuid()) @db.Uuid
+  name                String
+  startAt             DateTime @map("start_at")
+  endAt               DateTime @map("end_at")
+  configurationItemId String?  @db.Uuid @map("configuration_item_id")
+  businessServiceId   String?  @db.Uuid @map("business_service_id")
+  configurationItem   ConfigurationItem? @relation(fields: [configurationItemId], references: [id])
+  businessService     BusinessService?   @relation(fields: [businessServiceId], references: [id])
+
+  @@map("blackout_periods")
+}
+
+model ChangeAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  changeId    String   @db.Uuid @map("change_id")
+  taskId      String?  @db.Uuid @map("task_id")
+  testCaseId  String?  @db.Uuid @map("test_case_id")
+  approvalId  String?  @db.Uuid @map("approval_id")
+  pirId       String?  @db.Uuid @map("pir_id")
+  fileName    String   @map("file_name")
+  storageKey  String   @unique @map("storage_key")
+  contentType String   @map("content_type")
+  fileSize    Int      @map("file_size")
+  uploadedById String  @db.Uuid @map("uploaded_by_id")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+  change      ChangeRequest @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  uploadedBy  User          @relation(fields: [uploadedById], references: [id])
+
+  @@index([changeId])
+  @@map("change_attachments")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  action        String
+  field         String?
+  oldValue      String?  @map("old_value")
+  newValue      String?  @map("new_value")
+  userId        String   @db.Uuid @map("user_id")
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

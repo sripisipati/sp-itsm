@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
+storage/
+.tmp-storage/
+backend/src/generated/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+.DS_Store
+npm-debug.log*
+.vite/

@@ -1,0 +1,27 @@
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+◇ injected env (11) from ../.env
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "itsm_test", schema "public" at "localhost:5432"
+
+2 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+◇ injected env (11) from ../.env
+Loaded Prisma config from prisma.config.ts.
+
+Running seed command `node --require tsx/cjs prisma/seed.ts` ...
+◇ injected env (0) from ../.env
+Seeded 34 changes DRAFT:4, SUBMITTED:2, PENDING_APPROVAL:5, APPROVED:3, SCHEDULED:7, IMPLEMENTING:2, IMPLEMENTED:2, FAILED:1, DEFERRED:1, CANCELLED:1, PENDING_REVIEW:2, CLOSED:4
+
+🌱  The seed command has been executed.
+Test Suites: 1 passed, 1 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        4.697 s, estimated 5 s
+Ran all test suites matching test/changes.integration.spec.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,30 @@
+{
+  "name": "itsm",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ITSM platform — Incident and Change Management",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "database",
+    "e2e"
+  ],
+  "scripts": {
+    "db:generate": "npm run db:generate -w @itsm/database",
+    "db:migrate": "npm run db:migrate -w @itsm/database",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w @itsm/database",
+    "db:seed": "npm run db:seed -w @itsm/database",
+    "db:reset": "npm run db:reset -w @itsm/database",
+    "dev:backend": "npm run start:dev -w @itsm/backend",
+    "dev:frontend": "npm run dev -w @itsm/frontend",
+    "build:backend": "npm run build -w @itsm/backend",
+    "build:frontend": "npm run build -w @itsm/frontend",
+    "build": "npm run db:generate && npm run build:backend && npm run build:frontend",
+    "test:backend": "npm test -w @itsm/backend",
+    "test:frontend": "npm test -w @itsm/frontend",
+    "test:e2e": "npm test -w @itsm/e2e"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

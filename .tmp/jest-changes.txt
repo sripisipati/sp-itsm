@@ -1,0 +1,62 @@
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+◇ injected env (11) from ../.env
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "itsm_test", schema "public" at "localhost:5432"
+
+2 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm.
+◇ injected env (11) from ../.env
+Loaded Prisma config from prisma.config.ts.
+
+Running seed command `node --require tsx/cjs prisma/seed.ts` ...
+◇ injected env (0) from ../.env
+Seeded 34 changes DRAFT:4, SUBMITTED:2, PENDING_APPROVAL:5, APPROVED:3, SCHEDULED:7, IMPLEMENTING:2, IMPLEMENTED:2, FAILED:1, DEFERRED:1, CANCELLED:1, PENDING_REVIEW:2, CLOSED:4
+
+🌱  The seed command has been executed.
+FAIL test/changes.integration.spec.ts (6.229 s)
+  ● change API › runs sequential approval, rejection, and blocks self-approval
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 409
+    Received array: [200, 201]
+
+      123 |     expect(submitted.status).toBe(201);
+      124 |     const assessed = await request(app.getHttpServer()).post(`/api/v1/changes/${id}/assess`).set(auth(manager)).send({ version: version + 1, complete: true, assessmentSummary: "Risk accepted for CAB." });
+    > 125 |     expect([200, 201]).toContain(assessed.status);
+          |                        ^
+      126 |     const detail = await request(app.getHttpServer()).get(`/api/v1/changes/${id}`).set(auth(manager));
+      127 |     version = detail.body.data.version as number;
+      128 |     expect(detail.body.data.state).toBe("PENDING_APPROVAL");
+
+      at Object.<anonymous> (test/changes.integration.spec.ts:125:24)
+
+  ● change API › hides work notes from requesters and links an incident
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      194 |     const incident = await request(app.getHttpServer()).get(`/api/v1/incidents/${incidentId}`).set(auth(admin));
+      195 |     expect(incident.body.data.status).toBe("IN_PROGRESS");
+    > 196 |     expect(incident.body.data.relatedChanges.some((change: { id: string }) => change.id === id)).toBe(true);
+          |                                                                                                  ^
+      197 |   });
+      198 |
+      199 |   it("validates tasks, tests, conflicts, and summary counts", async () => {
+
+      at Object.<anonymous> (test/changes.integration.spec.ts:196:98)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 5 passed, 7 total
+Snapshots:   0 total
+Time:        6.291 s
+Ran all test suites matching test/changes.integration.spec.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

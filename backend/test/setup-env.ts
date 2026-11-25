@@ -1,0 +1,12 @@
+process.env.NODE_ENV = "test";
+process.env.DATABASE_URL = "postgresql://itsm:itsm_dev_only@localhost:5432/itsm_test?schema=public";
+process.env.JWT_SECRET = "test-only-secret-value";
+process.env.JWT_EXPIRES_IN = "8h";
+process.env.PORT = "0";
+process.env.FRONTEND_ORIGIN = "http://localhost:5173";
+process.env.STORAGE_DRIVER = "local";
+process.env.STORAGE_DIR = "../.tmp-storage";
+process.env.ATTACHMENT_MAX_BYTES = "10485760";
+process.env.ATTACHMENT_ALLOWED_MIME = "text/plain,text/csv,application/pdf,image/png,image/jpeg,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+process.env.THROTTLE_TTL = "60000";
+process.env.THROTTLE_LIMIT = "100000";
