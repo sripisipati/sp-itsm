@@ -26,7 +26,7 @@ const detailInclude = {
   configurationItem: true,
   businessService: true,
   assignmentGroup: true,
-  notes: { include: { createdBy: { select: userSelect } }, orderBy: { createdAt: "asc" as const } },
+  notes: { include: { createdBy: { select: userSelect } }, orderBy: { createdAt: "desc" as const } },
   attachments: { include: { uploadedBy: { select: userSelect } }, orderBy: { uploadedAt: "desc" as const } },
   history: { include: { changedBy: { select: userSelect } }, orderBy: { changedAt: "asc" as const } },
   changes: { select: { id: true, number: true, shortDescription: true, state: true, type: true }, orderBy: { createdAt: "desc" as const } },
@@ -160,7 +160,7 @@ export function presentDetail(
       occurredAt: note.createdAt,
       actor: note.createdBy,
     })),
-  ].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+  ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 
   return {
     ...presentListItem(incident),

@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import { ChangeState, NoteType, Prisma } from "../../generated/prisma/client";
+import { ChangeState, ChangeType, NoteType, Prisma } from "../../generated/prisma/client";
 import { paginationMeta } from "../../common/pagination";
 import { AuthenticatedUser } from "../../common/auth/authenticated-user";
 import { PrismaService } from "../../database/prisma.service";
@@ -162,6 +162,79 @@ export class ChangesService {
       this.prisma.blackoutPeriod.findMany({ where: { startAt: { lt: end }, endAt: { gt: start } }, orderBy: { startAt: "asc" } }),
     ]);
     return { data: { changes, maintenanceWindows, blackoutPeriods } };
+  }
+
+  async scheduleCatalog() {
+    const [maintenanceWindows, blackoutPeriods] = await Promise.all([
+      this.prisma.maintenanceWindow.findMany({
+        orderBy: { startAt: "asc" },
+        include: {
+          configurationItem: { select: { id: true, name: true } },
+          businessService: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.blackoutPeriod.findMany({ orderBy: { startAt: "asc" } }),
+    ]);
+    return { data: { maintenanceWindows, blackoutPeriods } };
+  }
+
+  async reports() {
+    const summary = await this.summary();
+    const [total, emergency, rollback, linkedIncidents, byPriority, byRequesterRows, byCiRows, turnaround, duration] = await Promise.all([
+      this.prisma.changeRequest.count(),
+      this.prisma.changeRequest.count({ where: { type: ChangeType.EMERGENCY } }),
+      this.prisma.changeRequest.count({ where: { rollbackExecuted: true } }),
+      this.prisma.changeRequest.count({ where: { relatedIncidentId: { not: null } } }),
+      this.prisma.changeRequest.groupBy({ by: ["priority"], _count: { _all: true } }),
+      this.prisma.changeRequest.groupBy({ by: ["requestedById"], _count: { _all: true } }),
+      this.prisma.changeRequest.groupBy({ by: ["configurationItemId"], _count: { _all: true } }),
+      this.prisma.$queryRaw<Array<{ seconds: number | null }>>`
+        SELECT AVG(EXTRACT(EPOCH FROM (a.decided_at - c.created_at))) AS seconds
+        FROM change_approvals a
+        JOIN change_requests c ON c.id = a.change_id
+        WHERE a.decided_at IS NOT NULL
+      `,
+      this.prisma.$queryRaw<Array<{ planned: number | null; actual: number | null }>>`
+        SELECT
+          AVG(EXTRACT(EPOCH FROM (planned_end - planned_start))) AS planned,
+          AVG(EXTRACT(EPOCH FROM (actual_end - actual_start))) AS actual
+        FROM change_requests
+        WHERE planned_start IS NOT NULL AND planned_end IS NOT NULL
+          AND actual_start IS NOT NULL AND actual_end IS NOT NULL
+      `,
+    ]);
+    const [users, cis] = await Promise.all([
+      this.prisma.user.findMany({ select: { id: true, firstName: true, lastName: true } }),
+      this.prisma.configurationItem.findMany({ select: { id: true, name: true } }),
+    ]);
+    const success = summary.data.successVsFailed.success;
+    const failed = summary.data.successVsFailed.failed;
+    const decided = success + summary.data.successVsFailed.partial + failed;
+    const hours = (value: number | null | undefined) => (value == null ? null : Math.round((Number(value) / 3600) * 100) / 100);
+    return {
+      data: {
+        ...summary.data,
+        byPriority: byPriority.map((row) => ({ priority: row.priority ?? "Unset", count: row._count._all })),
+        byRequester: byRequesterRows.map((row) => {
+          const user = users.find((item) => item.id === row.requestedById);
+          return { name: user ? `${user.firstName} ${user.lastName}` : "Unknown", count: row._count._all };
+        }),
+        byConfigurationItem: byCiRows.map((row) => ({
+          name: cis.find((item) => item.id === row.configurationItemId)?.name ?? "Unassigned",
+          count: row._count._all,
+        })),
+        percentages: {
+          successful: decided ? Math.round((success / decided) * 1000) / 10 : 0,
+          failed: decided ? Math.round((failed / decided) * 1000) / 10 : 0,
+          emergency: total ? Math.round((emergency / total) * 1000) / 10 : 0,
+        },
+        rollbackCount: rollback,
+        changesLinkedToIncidents: linkedIncidents,
+        approvalTurnaroundHours: hours(turnaround[0]?.seconds),
+        plannedDurationHours: hours(duration[0]?.planned),
+        actualDurationHours: hours(duration[0]?.actual),
+      },
+    };
   }
 
   async conflicts(query: ConflictQueryDto) {

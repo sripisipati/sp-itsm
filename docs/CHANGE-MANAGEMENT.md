@@ -64,6 +64,8 @@ Collection responses use `{ data, pagination: { page, pageSize, totalRecords, to
 - `GET /api/v1/changes/summary`
 - `GET /api/v1/changes/calendar`
 - `GET /api/v1/changes/conflicts`
+- `GET /api/v1/changes/schedule-catalog`
+- `GET /api/v1/changes/reports`
 - `GET /api/v1/changes/export`
 - `POST /api/v1/changes/preview-classification`
 - `GET/PATCH /api/v1/changes/:id`
@@ -75,7 +77,8 @@ Collection responses use `{ data, pagination: { page, pageSize, totalRecords, to
 - `POST /api/v1/changes/:id/approvals/:approvalId/decision`
 - `GET /api/v1/changes/:id/history`
 - `GET/POST /api/v1/changes/:id/tasks` and `PATCH .../tasks/:taskId`
-- `GET/POST /api/v1/changes/:id/test-cases`
+- `GET/POST /api/v1/changes/:id/test-cases` and `PATCH .../test-cases/:testId`
+- `GET /api/v1/changes/:id/attachments/:attachmentId/download`
 - `GET/POST /api/v1/changes/:id/notes`
 - `POST /api/v1/changes/:id/pir`
 - `GET/POST /api/v1/changes/:id/attachments`
@@ -94,6 +97,12 @@ ITSM Administrator, Change Manager, Change Requester, Change Owner, Technical Ap
 
 ## What the UI covers
 
-The change list has the heading, subtitle, Add Change, Export, and Refresh, dashboard cards, status/type/risk/group/month/outcome charts, recent and upcoming tables, server filters under each column, search, pagination, and CSV export. Create and edit cover the main description, type, impact, probability, window, and backout fields, with an unsaved-change warning. Detail shows risk text, workflow buttons, approvals, tasks, notes, and PIR when present.
+The change list has the heading, subtitle, Add Change, Export, and Refresh, dashboard cards, status/type/risk/group/month/outcome charts, recent and upcoming tables, server filters under each column, user autocomplete, a multi-select state filter, column sorting, search, pagination, and CSV export.
 
-These parts are API-backed and not separate screens: calendar, CAB meetings, approval-policy administration, attachment upload, the full task and test-case editors, and user autocomplete on the list filters. People filters accept a user id. State accepts a comma-separated list.
+Create and edit use sectioned forms for description, classification, related incident and problem, risk inputs, the server-calculated risk indicator, schedule, assignment, backout, and implementation results. Conflict warnings come from `GET /changes/conflicts`. Leaving a dirty form asks for confirmation.
+
+Detail runs the lifecycle actions, approvals (approve, reject, request information, delegate), tasks, test cases, three note types, attachment upload and download, PIR, and the activity timeline.
+
+Calendar, CAB meetings, change reports, and approval-policy administration are separate screens. A problem page lists linked changes. An incident can start a change with `incidentId` already set.
+
+`GET /api/v1/changes/reports` adds priority, requester, configuration item, success and emergency percentages, rollback count, approval turnaround, and planned versus actual duration. `GET /api/v1/changes/schedule-catalog` lists maintenance windows and blackout periods. `PATCH /api/v1/changes/:id/test-cases/:testId` updates a test case. Attachment download is `GET /api/v1/changes/:id/attachments/:attachmentId/download`.

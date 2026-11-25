@@ -69,6 +69,7 @@ export function IncidentDetailPage() {
         </Box>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {record.permissions.canEdit && <Button variant="contained" onClick={() => navigate(`/incidents/${record.id}/edit`)}>Edit</Button>}
+          <Button variant="outlined" onClick={() => navigate(`/changes/new?incidentId=${record.id}`)}>Create change</Button>
           {record.permissions.canAssign && <Button variant="outlined" onClick={() => { setGroupId(record.assignmentGroupId ?? ""); setAssigneeId(record.assignedToId ?? ""); setDialog("assign"); }}>Assign</Button>}
           {record.permissions.canUpdateStatus && <Button variant="outlined" onClick={() => { setNextStatus(record.allowedTransitions[0] ?? record.status); setDialog("status"); }}>Update Status</Button>}
           {record.permissions.canAddWorkNote && <Button variant="outlined" onClick={() => { setNoteType("WORK_NOTE"); setDialog("note"); }}>Add Work Note</Button>}
@@ -116,7 +117,7 @@ export function IncidentDetailPage() {
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>Notes and comments</Typography>
             {record.notes.length === 0 && <Typography color="text.secondary">No notes.</Typography>}
-            {record.notes.map((item) => (
+            {[...record.notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((item) => (
               <Box key={item.id} sx={{ mb: 1.5 }}>
                 <Typography variant="caption" color="text.secondary">{item.noteType === "WORK_NOTE" ? "Work note" : "Additional comment"} · {item.createdBy?.name} · {formatDateTime(item.createdAt)}</Typography>
                 <Typography sx={{ whiteSpace: "pre-wrap" }}>{item.content}</Typography>

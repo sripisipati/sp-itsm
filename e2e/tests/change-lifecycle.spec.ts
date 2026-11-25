@@ -14,7 +14,7 @@ test("logs in, filters changes, creates one, and submits it", async ({ page }) =
 
   const listResponse = page.waitForResponse((response) => response.url().includes("/api/v1/changes") && response.url().includes("type=EMERGENCY") && response.request().method() === "GET");
   await page.getByLabel("Filter type").click();
-  await page.getByRole("option", { name: "EMERGENCY" }).click();
+  await page.getByRole("option", { name: "Emergency" }).click();
   const filtered = await listResponse;
   expect(filtered.ok()).toBe(true);
   await expect(page.getByRole("link", { name: /^CHG/ }).first()).toBeVisible();
@@ -29,7 +29,7 @@ test("logs in, filters changes, creates one, and submits it", async ({ page }) =
   await page.getByLabel("Short description").fill(marker);
   await page.getByLabel("Detailed description").fill("Created in the browser to verify the change form, server number, and submit.");
   await page.getByLabel("Type").click();
-  await page.getByRole("option", { name: "STANDARD" }).click();
+  await page.getByRole("option", { name: "Standard" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: /^CHG\d{7}$/ })).toBeVisible();
   await page.getByRole("button", { name: "Submit" }).click();

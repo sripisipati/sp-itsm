@@ -88,6 +88,7 @@ export class ChangeWorkflowService {
       await this.guard(tx, change, rule.guard, dto, user);
       const data: Prisma.ChangeRequestUncheckedUpdateManyInput = { state: dto.toState, updatedById: user.id };
       if (dto.implementationOutcome) data.implementationOutcome = dto.implementationOutcome;
+      if (dto.rollbackExecuted != null) data.rollbackExecuted = dto.rollbackExecuted;
       if (dto.toState === ChangeState.IMPLEMENTING && !change.actualStart) data.actualStart = new Date();
       if ((dto.toState === ChangeState.IMPLEMENTED || dto.toState === ChangeState.FAILED) && !change.actualEnd) data.actualEnd = new Date();
       if (dto.toState === ChangeState.APPROVED) data.approvalStatus = ChangeApprovalStatus.APPROVED;
@@ -290,6 +291,27 @@ export class ChangeWorkflowService {
 
   async listTests(id: string) {
     return { data: await this.prisma.changeTestCase.findMany({ where: { changeId: id }, orderBy: { createdAt: "asc" } }) };
+  }
+
+  async updateTest(id: string, testId: string, dto: TestCaseDto, user: AuthenticatedUser) {
+    assertEditor(user);
+    const existing = await this.prisma.changeTestCase.findFirst({ where: { id: testId, changeId: id } });
+    if (!existing) throw new NotFoundException("Test case not found");
+    const status = dto.status ?? existing.status;
+    const actual = dto.actualResults ?? existing.actualResults ?? undefined;
+    this.assertTest(status, actual ?? undefined);
+    const row = await this.prisma.changeTestCase.update({
+      where: { id: testId },
+      data: {
+        description: dto.description,
+        expectedResults: dto.expectedResults,
+        validationCriteria: dto.validationCriteria,
+        ownerId: dto.ownerId,
+        actualResults: actual,
+        status,
+      },
+    });
+    return { data: row };
   }
 
   async addTest(id: string, dto: TestCaseDto, user: AuthenticatedUser) {
@@ -507,7 +529,7 @@ export class ChangeWorkflowService {
       const outcome = dto.implementationOutcome ?? change.implementationOutcome;
       if (outcome !== ImplementationOutcome.FAILURE) throw new BadRequestException("Record a failed implementation outcome first");
     }
-    if (guard === "ROLLBACK_IF_REQUIRED" && change.backoutRequired && !change.rollbackExecuted) {
+    if (guard === "ROLLBACK_IF_REQUIRED" && change.backoutRequired && !change.rollbackExecuted && !dto.rollbackExecuted) {
       throw new BadRequestException("Record the rollback before review");
     }
     if (guard === "CLOSE_READY") {

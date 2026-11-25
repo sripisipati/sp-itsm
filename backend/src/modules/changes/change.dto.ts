@@ -163,6 +163,7 @@ export class StateDto {
   @IsInt() @Min(1) version!: number;
   @IsOptional() @IsString() justification?: string;
   @IsOptional() @IsEnum(ImplementationOutcome) implementationOutcome?: ImplementationOutcome;
+  @IsOptional() @IsBoolean() rollbackExecuted?: boolean;
 }
 
 export class AssessDto {

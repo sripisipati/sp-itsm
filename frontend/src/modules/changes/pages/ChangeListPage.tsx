@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { useMemo, type ReactNode } from "react";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
+import { MetricCard, metricTones, type MetricTone } from "../../../shared/components/MetricCard";
+import { UserLookup } from "../../../shared/components/UserLookup";
 import { api, errorMessage } from "../../../shared/services/api";
+import { changeStates, pretty } from "../options";
 import { formatDateTime } from "../../../shared/utilities/format";
 
 interface Person { id: string; name: string }
@@ -41,6 +44,25 @@ interface Summary {
   upcoming: ChangeRow[];
 }
 
+const sortFields: Record<string, string> = {
+  number: "number",
+  shortDescription: "shortDescription",
+  type: "type",
+  category: "category",
+  riskLevel: "riskLevel",
+  businessImpact: "businessImpact",
+  priority: "priority",
+  requestedBy: "requestedBy",
+  assignedTo: "assignedTo",
+  assignmentGroup: "assignmentGroup",
+  approvalStatus: "approvalStatus",
+  state: "state",
+  plannedStart: "plannedStart",
+  plannedEnd: "plannedEnd",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
+
 const titles: Record<string, string> = {
   all: "All Changes",
   mine: "My Changes",
@@ -77,6 +99,22 @@ export function ChangeListPage() {
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== "page") next.set("page", "1");
+    setParams(next);
+  }
+
+  function toggleSort(field: string) {
+    const next = new URLSearchParams(params);
+    const current = next.get("sortBy");
+    if (current !== field) {
+      next.set("sortBy", field);
+      next.set("sortOrder", "asc");
+    } else if (next.get("sortOrder") === "asc") {
+      next.set("sortOrder", "desc");
+    } else {
+      next.delete("sortBy");
+      next.delete("sortOrder");
+    }
+    next.set("page", "1");
     setParams(next);
   }
 
@@ -138,15 +176,25 @@ export function ChangeListPage() {
         </Box>
       </Box>
       {cards && (
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 1 }}>
-          {[
-            ["Total", cards.total], ["Draft", cards.draft], ["Pending Approval", cards.pendingApproval], ["Approved", cards.approved],
-            ["Scheduled", cards.scheduled], ["In Progress", cards.implementing], ["Failed", cards.failed], ["Closed", cards.closed],
-          ].map(([label, value]) => (
-            <Paper key={String(label)} sx={{ p: 1.5 }}>
-              <Typography variant="caption" color="text.secondary">{label}</Typography>
-              <Typography variant="h5">{value}</Typography>
-            </Paper>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 2, pb: 1.5 }}>
+          {([
+            ["Total", cards.total, "", metricTones.indigo],
+            ["Draft", cards.draft, "DRAFT", metricTones.slate],
+            ["Pending Approval", cards.pendingApproval, "PENDING_APPROVAL", metricTones.amber],
+            ["Approved", cards.approved, "APPROVED", metricTones.teal],
+            ["Scheduled", cards.scheduled, "SCHEDULED", metricTones.violet],
+            ["In Progress", cards.implementing, "IMPLEMENTING", metricTones.cyan],
+            ["Failed", cards.failed, "FAILED", metricTones.rose],
+            ["Closed", cards.closed, "CLOSED", metricTones.green],
+          ] as Array<[string, number, string, MetricTone]>).map(([label, value, state, tone]) => (
+            <MetricCard
+              key={label}
+              label={label}
+              value={value}
+              tone={tone}
+              selected={(params.get("state") ?? "") === state}
+              onClick={() => setFilter("state", (params.get("state") ?? "") === state ? "" : state)}
+            />
           ))}
         </Box>
       )}
@@ -175,9 +223,19 @@ export function ChangeListPage() {
           <thead>
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
-                {group.headers.map((header) => (
-                  <th key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</th>
-                ))}
+                {group.headers.map((header) => {
+                  const field = sortFields[header.id];
+                  const active = params.get("sortBy") === field;
+                  return (
+                    <th key={header.id}>
+                      {field ? (
+                        <Button size="small" onClick={() => toggleSort(field)} sx={{ fontWeight: 700, textTransform: "none" }}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}{active ? (params.get("sortOrder") === "desc" ? " ↓" : " ↑") : ""}
+                        </Button>
+                      ) : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
             <tr>
@@ -188,16 +246,30 @@ export function ChangeListPage() {
               <FilterCell><SelectFilter value={params.get("riskLevel") ?? ""} onChange={(value) => setFilter("riskLevel", value)} options={["VERY_HIGH", "HIGH", "MEDIUM", "LOW", "VERY_LOW"]} /></FilterCell>
               <FilterCell><SelectFilter value={params.get("impact") ?? ""} onChange={(value) => setFilter("impact", value)} options={["VERY_HIGH", "HIGH", "MEDIUM", "LOW", "VERY_LOW"]} /></FilterCell>
               <FilterCell><SelectFilter value={params.get("priority") ?? ""} onChange={(value) => setFilter("priority", value)} options={["CRITICAL", "HIGH", "MODERATE", "LOW", "PLANNING"]} /></FilterCell>
-              <FilterCell><TextField size="small" placeholder="User id" value={params.get("requestedById") ?? ""} onChange={(event) => setFilter("requestedById", event.target.value)} /></FilterCell>
-              <FilterCell><TextField size="small" placeholder="User id" value={params.get("assignedToId") ?? ""} onChange={(event) => setFilter("assignedToId", event.target.value)} /></FilterCell>
+              <FilterCell><UserLookup label="Requested by" value={params.get("requestedById") ?? ""} onChange={(value) => setFilter("requestedById", value)} /></FilterCell>
+              <FilterCell><UserLookup label="Assigned to" value={params.get("assignedToId") ?? ""} onChange={(value) => setFilter("assignedToId", value)} /></FilterCell>
               <FilterCell><SelectFilter value={params.get("assignmentGroupId") ?? ""} onChange={(value) => setFilter("assignmentGroupId", value)} options={(groups.data ?? []).map((item) => item.id)} labels={Object.fromEntries((groups.data ?? []).map((item) => [item.id, item.name]))} /></FilterCell>
               <FilterCell><SelectFilter value={params.get("approvalStatus") ?? ""} onChange={(value) => setFilter("approvalStatus", value)} options={["NOT_REQUESTED", "PENDING", "APPROVED", "REJECTED"]} /></FilterCell>
-              <FilterCell><TextField size="small" placeholder="DRAFT,APPROVED" value={params.get("state") ?? ""} onChange={(event) => setFilter("state", event.target.value)} /></FilterCell>
+              <FilterCell>
+                <TextField
+                  select
+                  size="small"
+                  value={(params.get("state") ?? "").split(",").filter(Boolean)}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setFilter("state", Array.isArray(next) ? next.join(",") : String(next));
+                  }}
+                  sx={{ minWidth: 140 }}
+                  slotProps={{ select: { multiple: true, displayEmpty: true, "aria-label": "Filter state" } }}
+                >
+                  {changeStates.map((state) => <MenuItem key={state} value={state}>{pretty(state)}</MenuItem>)}
+                </TextField>
+              </FilterCell>
               <FilterCell><DateRange prefix="plannedStart" from={params.get("plannedStartFrom") ?? ""} to={params.get("plannedStartTo") ?? ""} onChange={setFilter} /></FilterCell>
               <FilterCell><DateRange prefix="plannedEnd" from={params.get("plannedEndFrom") ?? ""} to={params.get("plannedEndTo") ?? ""} onChange={setFilter} /></FilterCell>
-              <FilterCell><TextField size="small" placeholder="User id" value={params.get("createdById") ?? ""} onChange={(event) => setFilter("createdById", event.target.value)} /></FilterCell>
+              <FilterCell><UserLookup label="Created by" value={params.get("createdById") ?? ""} onChange={(value) => setFilter("createdById", value)} /></FilterCell>
               <FilterCell><DateRange prefix="created" from={params.get("createdFrom") ?? ""} to={params.get("createdTo") ?? ""} onChange={setFilter} /></FilterCell>
-              <FilterCell><TextField size="small" placeholder="User id" value={params.get("updatedById") ?? ""} onChange={(event) => setFilter("updatedById", event.target.value)} /></FilterCell>
+              <FilterCell><UserLookup label="Updated by" value={params.get("updatedById") ?? ""} onChange={(value) => setFilter("updatedById", value)} /></FilterCell>
               <FilterCell><DateRange prefix="updated" from={params.get("updatedFrom") ?? ""} to={params.get("updatedTo") ?? ""} onChange={setFilter} /></FilterCell>
               <th />
             </tr>
@@ -266,7 +338,7 @@ function SelectFilter({ value, onChange, options, labels, label }: { value: stri
   return (
     <TextField select size="small" value={value} onChange={(event) => onChange(event.target.value)} sx={{ minWidth: 110 }} slotProps={{ select: { "aria-label": label } }}>
       <MenuItem value="">All</MenuItem>
-      {options.map((option) => <MenuItem key={option} value={option}>{labels?.[option] ?? option}</MenuItem>)}
+      {options.map((option) => <MenuItem key={option} value={option}>{labels?.[option] ?? pretty(option)}</MenuItem>)}
     </TextField>
   );
 }

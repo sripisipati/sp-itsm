@@ -25,6 +25,10 @@ const links = {
     { label: "Scheduled Changes", to: "/changes?view=scheduled" },
     { label: "Emergency Changes", to: "/changes?view=emergency" },
     { label: "Closed Changes", to: "/changes?view=closed" },
+    { label: "Change Calendar", to: "/changes/calendar" },
+    { label: "CAB Meetings", to: "/changes/cab" },
+    { label: "Change Reports", to: "/changes/reports" },
+    { label: "Approval Policies", to: "/changes/policies" },
   ],
   admin: [
     { label: "Users", to: "/admin/users" },

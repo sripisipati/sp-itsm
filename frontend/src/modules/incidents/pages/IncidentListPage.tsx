@@ -97,7 +97,13 @@ export function IncidentListPage() {
           <Button variant="text" onClick={() => { setDraft({}); setParams(view === "all" ? {} : { view }); }}>Clear Filters</Button>
         </Box>
       </Box>
-      {summary.data && <SummaryCards {...summary.data} />}
+      {summary.data && (
+        <SummaryCards
+          {...summary.data}
+          status={params.get("status") ?? ""}
+          onSelect={(status) => updateParam("status", status)}
+        />
+      )}
       <Paper sx={{ overflow: "hidden" }}>
         {(list.isLoading || list.isFetching) && <LinearProgress />}
         {list.isError && <Alert severity="error" action={<Button onClick={() => void list.refetch()}>Retry</Button>}>{errorMessage(list.error)}</Alert>}

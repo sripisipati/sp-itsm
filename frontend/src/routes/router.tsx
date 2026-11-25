@@ -4,10 +4,15 @@ import { AppShell } from "../layouts/AppShell";
 import { useAuth } from "../modules/auth/AuthContext";
 import { LoginPage } from "../modules/auth/LoginPage";
 import { CategoriesAdminPage, ConfigurationItemsPage, GroupsAdminPage, SettingsPage, UsersAdminPage } from "../modules/admin/AdminPages";
+import { CabMeetingsPage } from "../modules/changes/pages/CabMeetingsPage";
+import { ChangeCalendarPage } from "../modules/changes/pages/ChangeCalendarPage";
 import { ChangeDetailPage } from "../modules/changes/pages/ChangeDetailPage";
 import { ChangeFormPage } from "../modules/changes/pages/ChangeFormPage";
 import { ChangeListPage } from "../modules/changes/pages/ChangeListPage";
+import { ChangePoliciesPage } from "../modules/changes/pages/ChangePoliciesPage";
+import { ChangeReportsPage } from "../modules/changes/pages/ChangeReportsPage";
 import { ComingSoonPage } from "../modules/common/ComingSoonPage";
+import { ProblemDetailPage, ProblemsPage } from "../modules/problems/ProblemsPage";
 import { DashboardPage } from "../modules/dashboard/pages/DashboardPage";
 import { IncidentDetailPage } from "../modules/incidents/pages/IncidentDetailPage";
 import { IncidentFormPage } from "../modules/incidents/pages/IncidentFormPage";
@@ -32,9 +37,14 @@ export const router = createBrowserRouter([
       { path: "incidents/:id", element: <IncidentDetailPage /> },
       { path: "incidents/:id/edit", element: <IncidentFormPage /> },
       { path: "major-incidents", element: <ComingSoonPage title="Major Incident Management" /> },
-      { path: "problems", element: <ComingSoonPage title="Problem Management" /> },
+      { path: "problems", element: <ProblemsPage /> },
+      { path: "problems/:id", element: <ProblemDetailPage /> },
       { path: "changes", element: <ChangeListPage /> },
       { path: "changes/new", element: <ChangeFormPage /> },
+      { path: "changes/calendar", element: <ChangeCalendarPage /> },
+      { path: "changes/cab", element: <CabMeetingsPage /> },
+      { path: "changes/reports", element: <ChangeReportsPage /> },
+      { path: "changes/policies", element: <ChangePoliciesPage /> },
       { path: "changes/:id", element: <ChangeDetailPage /> },
       { path: "changes/:id/edit", element: <ChangeFormPage /> },
       { path: "admin/users", element: <UsersAdminPage /> },

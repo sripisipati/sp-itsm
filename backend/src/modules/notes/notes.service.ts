@@ -26,7 +26,7 @@ export class NotesService {
         ...(canSeeWorkNotes(user) ? {} : { noteType: NoteType.ADDITIONAL_COMMENT }),
       },
       include: { createdBy: { select: userSelect } },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
     return { data: notes.map(presentNote) };
   }

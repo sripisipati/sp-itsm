@@ -91,7 +91,7 @@ Set a unique `JWT_SECRET` of at least 16 characters. Do not commit `.env`.
 
 Incident list, create, edit, detail, assignment, priority matrix, status transitions, work notes, additional comments, attachments, audit history, dashboard metrics, and role checks are implemented against the API. Ticket numbers are generated in the database.
 
-Change Management list, dashboard, create, edit, detail, submit, assessment, approvals, schedule, implementation, close, tasks, tests, notes, PIR, CAB meetings, conflicts, and policy administration are implemented on the API. The UI covers the list, dashboard, create/edit, and the main detail actions. Calendar, CAB, policy administration, and attachment upload are available through the API and are not separate screens. Incident details list related changes. Closing a change does not close the incident.
+Change Management covers the list, dashboard, reports, calendar, create/edit, detail, submit, assessment, approvals, CAB meetings, schedule, implementation tasks, test cases, notes, attachments, PIR, and approval policies. Incident details can open a new change already linked to that incident. Problem records list the changes linked to them. Closing a change does not close the incident.
 
 Problem records can be listed and opened by id, including their related changes. There is no problem workflow. Major Incident Management navigation opens a coming-soon page.
 

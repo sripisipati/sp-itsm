@@ -52,6 +52,11 @@ export class ChangePoliciesController {
     return this.prisma.changeCategory.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }).then((data) => ({ data }));
   }
 
+  @Get("change-templates")
+  templates() {
+    return this.prisma.changeTemplate.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }).then((data) => ({ data }));
+  }
+
   @Get("approval-policies")
   @Roles(...admins, RoleName.CHANGE_AUDITOR)
   listPolicies() {

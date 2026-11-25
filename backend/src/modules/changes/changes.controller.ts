@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Header,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -101,6 +102,18 @@ export class ChangesController {
   @Roles(...readers)
   conflicts(@Query() query: ConflictQueryDto) {
     return this.changes.conflicts(query);
+  }
+
+  @Get("schedule-catalog")
+  @Roles(...readers)
+  scheduleCatalog() {
+    return this.changes.scheduleCatalog();
+  }
+
+  @Get("reports")
+  @Roles(...readers)
+  reports() {
+    return this.changes.reports();
   }
 
   @Get("export")
@@ -225,6 +238,17 @@ export class ChangesController {
     return this.workflow.addTest(id, dto, user);
   }
 
+  @Patch(":id/test-cases/:testId")
+  @Roles(...editors)
+  updateTest(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("testId", ParseUUIDPipe) testId: string,
+    @Body() dto: TestCaseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.workflow.updateTest(id, testId, dto, user);
+  }
+
   @Get(":id/notes")
   @Roles(...readers)
   notes(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
@@ -248,6 +272,21 @@ export class ChangesController {
   async attachments(@Param("id", ParseUUIDPipe) id: string) {
     const rows = await this.prisma.changeAttachment.findMany({ where: { changeId: id }, orderBy: { uploadedAt: "desc" } });
     return { data: rows };
+  }
+
+  @Get(":id/attachments/:attachmentId/download")
+  @Roles(...readers)
+  async download(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("attachmentId", ParseUUIDPipe) attachmentId: string,
+    @Res() response: Response,
+  ) {
+    const attachment = await this.prisma.changeAttachment.findFirst({ where: { id: attachmentId, changeId: id } });
+    if (!attachment) throw new NotFoundException("Attachment not found");
+    response.setHeader("Content-Type", attachment.contentType);
+    const disposition = attachment.contentType.startsWith("image/") || attachment.contentType === "application/pdf" ? "inline" : "attachment";
+    response.setHeader("Content-Disposition", `${disposition}; filename="${attachment.fileName.replace(/"/g, "")}"`);
+    this.storage.open(attachment.storageKey).pipe(response);
   }
 
   @Post(":id/attachments")

@@ -54,7 +54,7 @@ Each incident has a `version`. Updates include that version. A mismatched versio
 
 ## Change Management
 
-Change state, risk, approval, rollback, and PIR rules are rows in the database. Services in `backend/src/modules/changes` enforce them. The UI displays the API result. See [CHANGE-MANAGEMENT.md](CHANGE-MANAGEMENT.md).
+Change state, risk, approval, rollback, and PIR rules are rows in the database. Services in `backend/src/modules/changes` enforce them. The UI displays the API result and does not calculate risk or priority itself. See [CHANGE-MANAGEMENT.md](CHANGE-MANAGEMENT.md).
 
 Incident detail includes `relatedChanges`. Change workflow never updates the incident status.
 
